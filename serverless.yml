@@ -11,7 +11,7 @@ provider:
   environment:
     BINANCE_API_KEY: ${env:BINANCE_API_KEY}
     BINANCE_SECRET: ${env:BINANCE_SECRET}
-    SNS_TOPIC_ARN: 
+    SNS_TOPIC_ARN:
       Ref: TradingNotificationTopic
     S3_BUCKET: ${self:service}-${self:provider.stage}-trading-state
     DYNAMODB_TABLE: ${self:service}-${self:provider.stage}-trading-state
@@ -43,7 +43,7 @@ functions:
           rate: rate(5 minutes)
           enabled: true
     layers:
-      - arn:aws:lambda:ap-northeast-2:770693421928:layer:Klayers-p311-pandas:9
+      - arn:aws:lambda:ap-northeast-2:770693421928:layer:Klayers-p311-pandas:12
 
 resources:
   Resources:
