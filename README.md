@@ -264,7 +264,13 @@ aws iam create-access-key --user-name bitcoin-trader-deployer
                 "lambda:RemovePermission",
                 "lambda:InvokeFunction",
                 "lambda:PublishLayerVersion",
-                "lambda:DeleteLayerVersion"
+                "lambda:DeleteLayerVersion",
+                "lambda:GetLayerVersion",
+                "lambda:ListLayers",
+                "lambda:ListLayerVersions",
+                "lambda:TagResource",
+                "lambda:UntagResource",
+                "lambda:ListTags"
             ],
             "Resource": "*"
         },
@@ -359,9 +365,17 @@ aws iam create-access-key --user-name bitcoin-trader-deployer
                 "cloudformation:GetTemplate",
                 "cloudformation:ValidateTemplate",
                 "cloudformation:ListStacks",
-                "cloudformation:ListStackResources"
+                "cloudformation:ListStackResources",
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:DeleteChangeSet",
+                "cloudformation:ListChangeSets"
             ],
-            "Resource": "arn:aws:cloudformation:*:*:stack/bitcoin-auto-trader-*/*"
+            "Resource": [
+                "arn:aws:cloudformation:*:*:stack/bitcoin-auto-trader-*/*",
+                "arn:aws:cloudformation:*:*:changeSet/*/*"
+            ]
         },
         {
             "Sid": "IAMPermissions",
@@ -370,15 +384,45 @@ aws iam create-access-key --user-name bitcoin-trader-deployer
                 "iam:CreateRole",
                 "iam:DeleteRole",
                 "iam:GetRole",
+                "iam:UpdateRole",
                 "iam:PutRolePolicy",
                 "iam:DeleteRolePolicy",
                 "iam:AttachRolePolicy",
                 "iam:DetachRolePolicy",
-                "iam:PassRole"
+                "iam:PassRole",
+                "iam:GetRolePolicy",
+                "iam:ListRolePolicies",
+                "iam:ListAttachedRolePolicies",
+                "iam:TagRole",
+                "iam:UntagRole"
             ],
             "Resource": [
                 "arn:aws:iam::*:role/bitcoin-auto-trader-*",
                 "arn:aws:iam::*:policy/bitcoin-auto-trader-*"
+            ]
+        },
+        {
+            "Sid": "S3DeploymentPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "s3:CreateBucket",
+                "s3:DeleteBucket",
+                "s3:GetBucketLocation",
+                "s3:GetBucketPolicy",
+                "s3:ListBucket",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetBucketVersioning",
+                "s3:PutBucketVersioning",
+                "s3:GetBucketNotification",
+                "s3:PutBucketNotification",
+                "s3:GetBucketTagging",
+                "s3:PutBucketTagging"
+            ],
+            "Resource": [
+                "arn:aws:s3:::bitcoin-auto-trader-*",
+                "arn:aws:s3:::bitcoin-auto-trader-*/*"
             ]
         }
     ]
@@ -430,16 +474,75 @@ Repository > Settings > Secrets and variables > Actions에서 다음을 추가:
 
 ### 4. 권한 트러블슈팅
 
-#### 권한 부족 오류 해결
+#### 배포 실패 시 즉시 해결방법
+
+**방법 1: 기존 정책 삭제 후 재생성**
 ```bash
-# CloudFormation 권한 오류
-aws cloudformation describe-stacks --stack-name bitcoin-auto-trader-dev
+# 기존 정책 제거
+aws iam detach-user-policy \
+    --user-name bitcoin-trader-deployer \
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderMinimalPolicy
 
-# Lambda 권한 오류
-aws lambda get-function --function-name bitcoin-auto-trader-dev-trade
+aws iam delete-policy \
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderMinimalPolicy
 
-# S3 권한 오류
-aws s3 ls s3://bitcoin-auto-trader-dev-state-store
+# 관리자 권한 임시 부여 (빠른 해결)
+aws iam attach-user-policy \
+    --user-name bitcoin-trader-deployer \
+    --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
+```
+
+**방법 2: 업데이트된 최소 권한 정책 적용**
+```bash
+# 새로운 정책 파일 생성 (위의 JSON 사용)
+cat > updated-minimal-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    // 위의 완전한 JSON 내용
+  ]
+}
+EOF
+
+# 정책 생성 및 적용
+aws iam create-policy \
+    --policy-name BitcoinTraderCompletePolicy \
+    --policy-document file://updated-minimal-policy.json
+
+aws iam attach-user-policy \
+    --user-name bitcoin-trader-deployer \
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderCompletePolicy
+```
+
+#### 일반적인 권한 오류들
+
+1. **CloudFormation 권한 오류**
+   ```
+   cloudformation:CreateChangeSet action
+   ```
+   → 위의 업데이트된 정책 적용
+
+2. **Lambda 권한 오류**
+   ```
+   lambda:CreateFunction action  
+   ```
+   → Lambda 전체 권한 확인
+
+3. **S3 권한 오류**
+   ```
+   s3:CreateBucket action
+   ```
+   → S3 배포 권한 추가 필요
+
+#### 권한 검증
+```bash
+# 현재 사용자 권한 확인
+aws iam list-attached-user-policies --user-name bitcoin-trader-deployer
+
+# 정책 내용 확인
+aws iam get-policy-version \
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderCompletePolicy \
+    --version-id v1
 ```
 
 #### 권한 최적화 (보안 강화)
