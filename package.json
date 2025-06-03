@@ -18,7 +18,8 @@
     "backtest": "poetry run python backtest.py --start 2024-12-01 --end 2024-12-05",
     "backtest:chart": "poetry run python backtest.py --start 2024-12-01 --end 2024-12-05 --plot",
     "backtest:month": "poetry run python backtest.py --start 2024-11-01 --end 2024-12-01",
-    "backtest:week": "poetry run python backtest.py --start 2024-11-25 --end 2024-12-02"
+    "backtest:week": "poetry run python backtest.py --start 2024-11-25 --end 2024-12-02",
+    "requirements": "poetry export --without-hashes -f requirements.txt -o requirements.txt || echo 'Poetry export not available'"
   },
   "devDependencies": {
     "serverless": "^3.38.0",

@@ -90,6 +90,17 @@ jobs:
       run: |
         poetry install
 
+    - name: Generate requirements.txt
+      run: |
+        echo "🔍 Attempting to generate requirements.txt..."
+        if poetry self add poetry-plugin-export 2>/dev/null && poetry export --without-hashes -f requirements.txt -o requirements.txt 2>/dev/null; then
+          echo "✅ Generated requirements.txt using Poetry export!"
+        else
+          echo "⚠️ Poetry export failed, using existing requirements.txt"
+          echo "📋 Current requirements.txt contents:"
+          cat requirements.txt
+        fi
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -117,7 +128,7 @@ jobs:
     - name: Validate serverless configuration
       run: |
         echo "🔍 Validating serverless.yml..."
-        serverless print --stage dev | head -20
+        npx serverless print --stage dev | head -20
         echo "✅ Serverless configuration validation passed!"
 
     - name: Configure AWS credentials

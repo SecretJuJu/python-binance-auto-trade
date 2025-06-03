@@ -86,5 +86,5 @@ custom:
   pythonRequirements:
     dockerizePip: true
     layer: true
-    usePoetry: true
-    poetryPythonBin: python3
+    usePoetry: false
+    fileName: requirements.txt
