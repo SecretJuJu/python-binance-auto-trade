@@ -242,190 +242,117 @@ aws iam attach-user-policy \
 aws iam create-access-key --user-name bitcoin-trader-deployer
 ```
 
-#### 최소 권한 설정 (프로덕션용)
+#### 포괄적 배포 권한 설정 (권장)
 
-배포를 위해 최소한으로 필요한 권한들입니다:
+배포를 위해 필요한 포괄적 권한 정책입니다. 이 정책은 모든 배포 오류를 방지하면서도 리소스를 `bitcoin-auto-trader-*` 패턴으로 제한하여 보안을 유지합니다:
+
+**🔑 정책 특징:**
+- ✅ **CloudFormation**: 모든 스택 관리 권한
+- ✅ **Lambda**: 함수 생성/업데이트/삭제 전체 권한
+- ✅ **S3**: bitcoin-auto-trader 프리픽스 버킷에 대한 전체 권한
+- ✅ **IAM**: 역할 및 정책 관리 권한
+- ✅ **SNS/DynamoDB**: 해당 리소스에 대한 전체 권한
+- ✅ **CloudWatch/EventBridge**: 로깅 및 스케줄링 권한
+- ✅ **KMS**: 암호화 키 관리 권한
 
 ```json
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "LambdaPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "lambda:CreateFunction",
-                "lambda:UpdateFunctionCode",
-                "lambda:UpdateFunctionConfiguration",
-                "lambda:DeleteFunction",
-                "lambda:GetFunction",
-                "lambda:ListFunctions",
-                "lambda:AddPermission",
-                "lambda:RemovePermission",
-                "lambda:InvokeFunction",
-                "lambda:PublishLayerVersion",
-                "lambda:DeleteLayerVersion",
-                "lambda:GetLayerVersion",
-                "lambda:ListLayers",
-                "lambda:ListLayerVersions",
-                "lambda:TagResource",
-                "lambda:UntagResource",
-                "lambda:ListTags"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "S3Permissions",
-            "Effect": "Allow",
-            "Action": [
-                "s3:CreateBucket",
-                "s3:DeleteBucket",
-                "s3:GetBucketLocation",
-                "s3:GetBucketPolicy",
-                "s3:ListBucket",
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:DeleteObject",
-                "s3:GetBucketVersioning",
-                "s3:PutBucketVersioning"
-            ],
-            "Resource": [
-                "arn:aws:s3:::bitcoin-auto-trader-*",
-                "arn:aws:s3:::bitcoin-auto-trader-*/*"
-            ]
-        },
-        {
-            "Sid": "DynamoDBPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:CreateTable",
-                "dynamodb:DeleteTable",
-                "dynamodb:DescribeTable",
-                "dynamodb:GetItem",
-                "dynamodb:PutItem",
-                "dynamodb:UpdateItem",
-                "dynamodb:DeleteItem",
-                "dynamodb:Scan",
-                "dynamodb:Query"
-            ],
-            "Resource": "arn:aws:dynamodb:*:*:table/bitcoin-auto-trader-*"
-        },
-        {
-            "Sid": "SNSPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "sns:CreateTopic",
-                "sns:DeleteTopic",
-                "sns:GetTopicAttributes",
-                "sns:SetTopicAttributes",
-                "sns:Subscribe",
-                "sns:Unsubscribe",
-                "sns:Publish",
-                "sns:ListTopics"
-            ],
-            "Resource": "arn:aws:sns:*:*:bitcoin-auto-trader-*"
-        },
-        {
-            "Sid": "CloudWatchPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogGroup",
-                "logs:CreateLogStream",
-                "logs:PutLogEvents",
-                "logs:DescribeLogGroups",
-                "logs:DescribeLogStreams",
-                "logs:DeleteLogGroup"
-            ],
-            "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/bitcoin-auto-trader-*"
-        },
-        {
-            "Sid": "EventBridgePermissions",
-            "Effect": "Allow",
-            "Action": [
-                "events:PutRule",
-                "events:DeleteRule",
-                "events:DescribeRule",
-                "events:PutTargets",
-                "events:RemoveTargets",
-                "events:ListRules",
-                "events:ListTargetsByRule"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "CloudFormationPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "cloudformation:CreateStack",
-                "cloudformation:UpdateStack",
-                "cloudformation:DeleteStack",
-                "cloudformation:DescribeStacks",
-                "cloudformation:DescribeStackEvents",
-                "cloudformation:DescribeStackResources",
-                "cloudformation:GetTemplate",
-                "cloudformation:ValidateTemplate",
-                "cloudformation:ListStacks",
-                "cloudformation:ListStackResources",
-                "cloudformation:CreateChangeSet",
-                "cloudformation:DescribeChangeSet",
-                "cloudformation:ExecuteChangeSet",
-                "cloudformation:DeleteChangeSet",
-                "cloudformation:ListChangeSets"
-            ],
-            "Resource": [
-                "arn:aws:cloudformation:*:*:stack/bitcoin-auto-trader-*/*",
-                "arn:aws:cloudformation:*:*:changeSet/*/*"
-            ]
-        },
-        {
-            "Sid": "IAMPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "iam:CreateRole",
-                "iam:DeleteRole",
-                "iam:GetRole",
-                "iam:UpdateRole",
-                "iam:PutRolePolicy",
-                "iam:DeleteRolePolicy",
-                "iam:AttachRolePolicy",
-                "iam:DetachRolePolicy",
-                "iam:PassRole",
-                "iam:GetRolePolicy",
-                "iam:ListRolePolicies",
-                "iam:ListAttachedRolePolicies",
-                "iam:TagRole",
-                "iam:UntagRole"
-            ],
-            "Resource": [
-                "arn:aws:iam::*:role/bitcoin-auto-trader-*",
-                "arn:aws:iam::*:policy/bitcoin-auto-trader-*"
-            ]
-        },
-        {
-            "Sid": "S3DeploymentPermissions",
-            "Effect": "Allow",
-            "Action": [
-                "s3:CreateBucket",
-                "s3:DeleteBucket",
-                "s3:GetBucketLocation",
-                "s3:GetBucketPolicy",
-                "s3:ListBucket",
-                "s3:GetObject",
-                "s3:PutObject",
-                "s3:DeleteObject",
-                "s3:GetBucketVersioning",
-                "s3:PutBucketVersioning",
-                "s3:GetBucketNotification",
-                "s3:PutBucketNotification",
-                "s3:GetBucketTagging",
-                "s3:PutBucketTagging"
-            ],
-            "Resource": [
-                "arn:aws:s3:::bitcoin-auto-trader-*",
-                "arn:aws:s3:::bitcoin-auto-trader-*/*"
-            ]
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudFormationFullAccess",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3FullAccessForDeploymentAndStorage",
+      "Effect": "Allow",
+      "Action": [
+        "s3:*",
+        "s3-object-lambda:*"
+      ],
+      "Resource": [
+        "arn:aws:s3:::bitcoin-auto-trader-*",
+        "arn:aws:s3:::bitcoin-auto-trader-*/*"
+      ]
+    },
+    {
+      "Sid": "IAMRoleAndPolicyManagement",
+      "Effect": "Allow",
+      "Action": [
+        "iam:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaFullAccess",
+      "Effect": "Allow",
+      "Action": [
+        "lambda:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DynamoDBAccess",
+      "Effect": "Allow",
+      "Action": [
+        "dynamodb:*"
+      ],
+      "Resource": "arn:aws:dynamodb:*:*:table/bitcoin-auto-trader-*"
+    },
+    {
+      "Sid": "SNSTopicAccess",
+      "Effect": "Allow",
+      "Action": [
+        "sns:*"
+      ],
+      "Resource": "arn:aws:sns:*:*:bitcoin-auto-trader-*"
+    },
+    {
+      "Sid": "CloudWatchAccess",
+      "Effect": "Allow",
+      "Action": [
+        "logs:*",
+        "cloudwatch:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EventBridgeAccess",
+      "Effect": "Allow",
+      "Action": [
+        "events:*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "KMSAccessForEncryption",
+      "Effect": "Allow",
+      "Action": [
+        "kms:ListKeys",
+        "kms:ListAliases",
+        "kms:DescribeKey",
+        "kms:CreateKey",
+        "kms:ScheduleKeyDeletion",
+        "kms:EnableKey",
+        "kms:DisableKey",
+        "kms:GetKeyPolicy",
+        "kms:PutKeyPolicy",
+        "kms:CreateAlias",
+        "kms:DeleteAlias",
+        "kms:Encrypt",
+        "kms:Decrypt",
+        "kms:ReEncrypt*",
+        "kms:GenerateDataKey*",
+        "kms:TagResource",
+        "kms:UntagResource"
+      ],
+      "Resource": "*"
+    }
+  ]
 }
 ```
 
@@ -433,19 +360,87 @@ aws iam create-access-key --user-name bitcoin-trader-deployer
 
 ```bash
 # 위 JSON을 파일로 저장
-cat > minimal-iam-policy.json << 'EOF'
-{위의 JSON 내용}
+cat > bitcoin-trader-deploy-policy.json << 'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "CloudFormationFullAccess",
+      "Effect": "Allow",
+      "Action": ["cloudformation:*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3FullAccessForDeploymentAndStorage",
+      "Effect": "Allow",
+      "Action": ["s3:*", "s3-object-lambda:*"],
+      "Resource": [
+        "arn:aws:s3:::bitcoin-auto-trader-*",
+        "arn:aws:s3:::bitcoin-auto-trader-*/*"
+      ]
+    },
+    {
+      "Sid": "IAMRoleAndPolicyManagement",
+      "Effect": "Allow",
+      "Action": ["iam:*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LambdaFullAccess",
+      "Effect": "Allow",
+      "Action": ["lambda:*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DynamoDBAccess",
+      "Effect": "Allow",
+      "Action": ["dynamodb:*"],
+      "Resource": "arn:aws:dynamodb:*:*:table/bitcoin-auto-trader-*"
+    },
+    {
+      "Sid": "SNSTopicAccess",
+      "Effect": "Allow",
+      "Action": ["sns:*"],
+      "Resource": "arn:aws:sns:*:*:bitcoin-auto-trader-*"
+    },
+    {
+      "Sid": "CloudWatchAccess",
+      "Effect": "Allow",
+      "Action": ["logs:*", "cloudwatch:*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EventBridgeAccess",
+      "Effect": "Allow",
+      "Action": ["events:*"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "KMSAccessForEncryption",
+      "Effect": "Allow",
+      "Action": [
+        "kms:ListKeys", "kms:ListAliases", "kms:DescribeKey",
+        "kms:CreateKey", "kms:ScheduleKeyDeletion", "kms:EnableKey",
+        "kms:DisableKey", "kms:GetKeyPolicy", "kms:PutKeyPolicy",
+        "kms:CreateAlias", "kms:DeleteAlias", "kms:Encrypt",
+        "kms:Decrypt", "kms:ReEncrypt*", "kms:GenerateDataKey*",
+        "kms:TagResource", "kms:UntagResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
 EOF
 
-# 최소 권한 정책 생성
+# 포괄적 배포 권한 정책 생성
 aws iam create-policy \
-    --policy-name BitcoinTraderMinimalPolicy \
-    --policy-document file://minimal-iam-policy.json
+    --policy-name BitcoinTraderDeployPolicy \
+    --policy-document file://bitcoin-trader-deploy-policy.json
 
-# 최소 권한 연결
+# 정책 연결
 aws iam attach-user-policy \
     --user-name bitcoin-trader-deployer \
-    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderMinimalPolicy
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderDeployPolicy
 ```
 
 ### 2. 권한 확인 및 검증
@@ -476,42 +471,34 @@ Repository > Settings > Secrets and variables > Actions에서 다음을 추가:
 
 #### 배포 실패 시 즉시 해결방법
 
-**방법 1: 기존 정책 삭제 후 재생성**
+**방법 1: 관리자 권한 임시 부여 (가장 빠른 해결)**
 ```bash
-# 기존 정책 제거
+# 기존 정책 제거 (있다면)
 aws iam detach-user-policy \
     --user-name bitcoin-trader-deployer \
-    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderMinimalPolicy
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderDeployPolicy 2>/dev/null || true
 
-aws iam delete-policy \
-    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderMinimalPolicy
-
-# 관리자 권한 임시 부여 (빠른 해결)
+# 관리자 권한 임시 부여
 aws iam attach-user-policy \
     --user-name bitcoin-trader-deployer \
     --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 ```
 
-**방법 2: 업데이트된 최소 권한 정책 적용**
+**방법 2: 포괄적 배포 권한 정책 적용 (권장)**
 ```bash
-# 새로운 정책 파일 생성 (위의 JSON 사용)
-cat > updated-minimal-policy.json << 'EOF'
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    // 위의 완전한 JSON 내용
-  ]
-}
+# 새로운 정책 파일 생성
+cat > bitcoin-trader-deploy-policy.json << 'EOF'
+{위의 완전한 JSON 정책 내용}
 EOF
 
 # 정책 생성 및 적용
 aws iam create-policy \
-    --policy-name BitcoinTraderCompletePolicy \
-    --policy-document file://updated-minimal-policy.json
+    --policy-name BitcoinTraderDeployPolicy \
+    --policy-document file://bitcoin-trader-deploy-policy.json
 
 aws iam attach-user-policy \
     --user-name bitcoin-trader-deployer \
-    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderCompletePolicy
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderDeployPolicy
 ```
 
 #### 일반적인 권한 오류들
@@ -541,7 +528,7 @@ aws iam list-attached-user-policies --user-name bitcoin-trader-deployer
 
 # 정책 내용 확인
 aws iam get-policy-version \
-    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderCompletePolicy \
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderDeployPolicy \
     --version-id v1
 ```
 
