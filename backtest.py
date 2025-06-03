@@ -29,7 +29,7 @@ class BacktestEngine:
         # 설정 파일에서 거래 설정 로드
         trading_config = config_loader.get_trading_config()
         exchange_config = config_loader.get_exchange_config()
-        
+
         self.symbol = trading_config.get("symbol", "BTC/USDT")
         self.timeframe = trading_config.get("timeframe", "5m")
         self.sma_short = trading_config.get("sma_short", 7)
@@ -181,7 +181,9 @@ class BacktestEngine:
             # 매도 조건 확인
             elif position is not None:
                 # 수익률 계산 (실제 매도시 받을 금액 기준)
-                gross_profit_rate = (current_price - position["price"]) / position["price"]
+                gross_profit_rate = (current_price - position["price"]) / position[
+                    "price"
+                ]
                 # 실제 수익률 = 총 수익률 - 매수/매도 수수료
                 profit_rate = gross_profit_rate - (2 * self.trading_fee)
 
@@ -342,7 +344,7 @@ class BacktestEngine:
             # 설정에서 차트 크기 가져오기
             backtest_config = config_loader.get_backtest_config()
             chart_size = backtest_config.get("chart_size", [15, 12])
-            
+
             fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=chart_size)
 
             # 1. 가격 차트와 SMA

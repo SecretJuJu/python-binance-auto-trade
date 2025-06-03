@@ -5,7 +5,6 @@ from typing import Any, Dict
 
 import ccxt
 import pandas as pd
-from botocore.exceptions import ClientError
 
 from config_loader import config_loader
 from notification import notifier
@@ -19,7 +18,7 @@ class TradingBot:
         # 설정 파일에서 거래 설정 로드
         trading_config = config_loader.get_trading_config()
         exchange_config = config_loader.get_exchange_config()
-        
+
         self.symbol = trading_config.get("symbol", "BTC/USDT")
         self.timeframe = trading_config.get("timeframe", "5m")
         self.sma_short = trading_config.get("sma_short", 7)
@@ -68,10 +67,10 @@ class TradingBot:
             balance = self.exchange.fetch_balance()
             usdt_balance = balance["USDT"]["free"]
             btc_balance = balance["BTC"]["free"]
-            
+
             logger.info(f"현재 잔고 - USDT: ${usdt_balance:.2f}, BTC: {btc_balance:.6f}")
             return {"USDT": usdt_balance, "BTC": btc_balance}
-            
+
         except ccxt.NetworkError as e:
             error_msg = f"네트워크 오류로 잔고 조회 실패: {e}"
             logger.error(error_msg)
@@ -98,7 +97,9 @@ class TradingBot:
             # BTC 수량 계산 (수수료 고려)
             btc_amount = (amount_usdt * (1 - self.trading_fee)) / current_price
 
-            logger.info(f"매수 주문 시도 - 가격: ${current_price:.2f}, 수량: {btc_amount:.6f} BTC")
+            logger.info(
+                f"매수 주문 시도 - 가격: ${current_price:.2f}, 수량: {btc_amount:.6f} BTC"
+            )
 
             # 시장가 매수 주문
             order = self.exchange.create_market_buy_order(
@@ -106,10 +107,12 @@ class TradingBot:
             )
 
             logger.info(f"매수 주문 성공: {order['id']}")
-            
+
             # 거래 실행 알림
-            notifier.notify_trade_executed("BUY", current_price, btc_amount, 0)  # 잔고는 나중에 업데이트
-            
+            notifier.notify_trade_executed(
+                "BUY", current_price, btc_amount, 0
+            )  # 잔고는 나중에 업데이트
+
             return {
                 "order_id": order["id"],
                 "amount": btc_amount,
@@ -117,8 +120,8 @@ class TradingBot:
                 "cost": amount_usdt,
                 "timestamp": datetime.now(),
             }
-            
-        except ccxt.InsufficientFunds as e:
+
+        except ccxt.InsufficientFunds:
             error_msg = f"잔고 부족으로 매수 주문 실패 - 필요: ${amount_usdt:.2f}"
             logger.error(error_msg)
             notifier.notify_error("잔고 부족", error_msg, {"required_amount": amount_usdt})
@@ -143,7 +146,7 @@ class TradingBot:
         """매도 주문"""
         try:
             logger.info(f"매도 주문 시도 - 수량: {btc_amount:.6f} BTC")
-            
+
             # 시장가 매도 주문
             order = self.exchange.create_market_sell_order(
                 symbol=self.symbol, amount=btc_amount
@@ -151,12 +154,14 @@ class TradingBot:
 
             sell_price = order["price"] or order["average"]
             sell_cost = order["cost"]
-            
+
             logger.info(f"매도 주문 성공: {order['id']} - 가격: ${sell_price:.2f}")
-            
+
             # 거래 실행 알림
-            notifier.notify_trade_executed("SELL", sell_price, btc_amount, 0)  # 잔고는 나중에 업데이트
-            
+            notifier.notify_trade_executed(
+                "SELL", sell_price, btc_amount, 0
+            )  # 잔고는 나중에 업데이트
+
             return {
                 "order_id": order["id"],
                 "amount": btc_amount,
@@ -164,8 +169,8 @@ class TradingBot:
                 "cost": sell_cost,
                 "timestamp": datetime.now(),
             }
-            
-        except ccxt.InsufficientFunds as e:
+
+        except ccxt.InsufficientFunds:
             error_msg = f"보유 BTC 부족으로 매도 주문 실패 - 필요: {btc_amount:.6f} BTC"
             logger.error(error_msg)
             notifier.notify_error("보유량 부족", error_msg, {"required_btc": btc_amount})
@@ -266,8 +271,12 @@ class TradingBot:
                 else:
                     # 잔고 부족 알림
                     shortage = self.trade_amount - balance["USDT"]
-                    result["message"] = f"USDT 잔고 부족: 보유 ${balance['USDT']:.2f}, 필요 ${self.trade_amount:.2f} (부족: ${shortage:.2f})"
-                    notifier.notify_insufficient_balance(self.trade_amount, balance["USDT"])
+                    result[
+                        "message"
+                    ] = f"USDT 잔고 부족: 보유 ${balance['USDT']:.2f}, 필요 ${self.trade_amount:.2f} (부족: ${shortage:.2f})"
+                    notifier.notify_insufficient_balance(
+                        self.trade_amount, balance["USDT"]
+                    )
 
             # 매도 조건 확인
             elif self.should_sell(df, current_state):
@@ -276,7 +285,9 @@ class TradingBot:
 
                 # 수익 계산
                 profit = order_result["cost"] - self.trade_amount
-                profit_rate = (order_result["price"] - position["buy_price"]) / position["buy_price"]
+                profit_rate = (
+                    order_result["price"] - position["buy_price"]
+                ) / position["buy_price"]
 
                 new_state = current_state.copy()
                 new_state["position"] = None
@@ -290,10 +301,7 @@ class TradingBot:
 
                 # 수익 실현 알림
                 notifier.notify_profit_achieved(
-                    position["buy_price"], 
-                    order_result["price"], 
-                    profit, 
-                    profit_rate
+                    position["buy_price"], order_result["price"], profit, profit_rate
                 )
 
                 result.update(

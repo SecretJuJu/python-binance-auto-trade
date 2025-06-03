@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from datetime import datetime
@@ -24,11 +23,13 @@ class TradingNotifier:
         if not self.topic_arn and self.enabled:
             logger.warning("SNS_TOPIC_ARN 환경변수가 설정되지 않았습니다. 알림이 비활성화됩니다.")
             self.enabled = False
-        
+
         if self.enabled and self.topic_arn:
             logger.info(f"SNS 알림 활성화됨 - 토픽: {self.topic_arn}")
 
-    def send_notification(self, subject: str, message: str, data: Optional[Dict] = None):
+    def send_notification(
+        self, subject: str, message: str, data: Optional[Dict] = None
+    ):
         """SNS 알림 발송"""
         if not self.enabled or not self.topic_arn:
             logger.info(f"알림 비활성화됨: {subject}")
@@ -55,10 +56,12 @@ class TradingNotifier:
             logger.error(f"알림 발송 중 예외 발생: {e}")
             return None
 
-    def _format_message(self, subject: str, message: str, data: Optional[Dict] = None) -> str:
+    def _format_message(
+        self, subject: str, message: str, data: Optional[Dict] = None
+    ) -> str:
         """메시지 포맷팅"""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         formatted = f"""
 ⏰ 시간: {timestamp}
 📢 제목: {subject}
@@ -66,7 +69,7 @@ class TradingNotifier:
 """
 
         if data:
-            formatted += f"\n📊 상세 정보:\n"
+            formatted += "\n📊 상세 정보:\n"
             for key, value in data.items():
                 if key == "price":
                     formatted += f"  💰 {key}: ${value:,.2f}\n"
@@ -83,14 +86,16 @@ class TradingNotifier:
 
         return formatted.strip()
 
-    def notify_trade_executed(self, action: str, price: float, amount: float, balance: float):
+    def notify_trade_executed(
+        self, action: str, price: float, amount: float, balance: float
+    ):
         """거래 실행 알림"""
         if action == "BUY":
             subject = "💰 매수 주문 실행"
-            message = f"BTC를 매수했습니다!"
+            message = "BTC를 매수했습니다!"
         else:
             subject = "💸 매도 주문 실행"
-            message = f"BTC를 매도했습니다!"
+            message = "BTC를 매도했습니다!"
 
         data = {
             "action": action,
@@ -101,10 +106,12 @@ class TradingNotifier:
 
         self.send_notification(subject, message, data)
 
-    def notify_profit_achieved(self, buy_price: float, sell_price: float, profit: float, profit_rate: float):
+    def notify_profit_achieved(
+        self, buy_price: float, sell_price: float, profit: float, profit_rate: float
+    ):
         """수익 달성 알림"""
         subject = "🎉 수익 실현!"
-        message = f"거래에서 수익을 실현했습니다!"
+        message = "거래에서 수익을 실현했습니다!"
 
         data = {
             "buy_price": buy_price,
@@ -118,7 +125,7 @@ class TradingNotifier:
     def notify_insufficient_balance(self, required: float, available: float):
         """잔고 부족 알림"""
         subject = "⚠️ 잔고 부족"
-        message = f"매수에 필요한 자금이 부족합니다."
+        message = "매수에 필요한 자금이 부족합니다."
 
         data = {
             "required": required,
@@ -128,7 +135,9 @@ class TradingNotifier:
 
         self.send_notification(subject, message, data)
 
-    def notify_error(self, error_type: str, error_message: str, details: Optional[Dict] = None):
+    def notify_error(
+        self, error_type: str, error_message: str, details: Optional[Dict] = None
+    ):
         """에러 발생 알림"""
         subject = f"❌ 오류 발생: {error_type}"
         message = f"거래 봇에서 오류가 발생했습니다: {error_message}"
@@ -139,7 +148,7 @@ class TradingNotifier:
         """봇 시작 알림"""
         subject = "🚀 거래 봇 시작"
         message = "비트코인 자동거래 봇이 시작되었습니다."
-        
+
         trading_config = config_loader.get_trading_config()
         data = {
             "symbol": trading_config.get("symbol"),
@@ -157,4 +166,4 @@ class TradingNotifier:
 
 
 # 전역 알림 인스턴스
-notifier = TradingNotifier() 
+notifier = TradingNotifier()

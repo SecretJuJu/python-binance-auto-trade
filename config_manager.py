@@ -13,7 +13,6 @@ python config_manager.py preset aggressive       # 공격적 설정 적용
 import argparse
 import json
 import sys
-from typing import Any, Dict
 
 from config_loader import config_loader
 
@@ -164,9 +163,7 @@ def main():
 
     # show 명령어
     show_parser = subparsers.add_parser("show", help="현재 설정 보기")
-    show_parser.add_argument(
-        "--trading", action="store_true", help="거래 설정만 보기"
-    )
+    show_parser.add_argument("--trading", action="store_true", help="거래 설정만 보기")
 
     # set 명령어
     set_parser = subparsers.add_parser("set", help="설정 값 변경")
@@ -212,4 +209,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

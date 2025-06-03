@@ -1,5 +1,4 @@
 import json
-import os
 from typing import Any, Dict
 
 
@@ -17,9 +16,7 @@ class ConfigLoader:
                 with open(self.config_path, "r", encoding="utf-8") as f:
                     self._config = json.load(f)
             except FileNotFoundError:
-                raise FileNotFoundError(
-                    f"설정 파일을 찾을 수 없습니다: {self.config_path}"
-                )
+                raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {self.config_path}")
             except json.JSONDecodeError as e:
                 raise ValueError(f"설정 파일 JSON 형식 오류: {e}")
 
@@ -59,4 +56,4 @@ class ConfigLoader:
 
 
 # 전역 설정 로더 인스턴스
-config_loader = ConfigLoader() 
+config_loader = ConfigLoader()

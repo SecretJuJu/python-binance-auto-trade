@@ -2,9 +2,9 @@ import json
 import logging
 from datetime import datetime
 
+from notification import notifier
 from state_store import StateStore
 from trade import TradingBot
-from notification import notifier
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -56,12 +56,13 @@ def main(event, context):
     except Exception as e:
         error_msg = f"Trading execution failed: {str(e)}"
         logger.error(error_msg, exc_info=True)
-        
+
         # 전역 에러 알림 발송
-        notifier.notify_error("Lambda 실행 실패", error_msg, {
-            "timestamp": datetime.now().isoformat(),
-            "event": str(event)
-        })
+        notifier.notify_error(
+            "Lambda 실행 실패",
+            error_msg,
+            {"timestamp": datetime.now().isoformat(), "event": str(event)},
+        )
 
         return {
             "statusCode": 500,
