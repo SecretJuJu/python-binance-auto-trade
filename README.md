@@ -1,1 +1,22 @@
-# python-binance-auto-trade
+# 🧠 AI 기반 비트코인 자동매매 시스템
+
+이 프로젝트는 단순 이동평균 교차(SMA Crossover) 전략을 기반으로  
+BTC/USDT 마켓에서 자동으로 매수/매도 거래를 수행하는 서버리스 트레이딩 봇입니다.
+
+- 실거래는 **AWS Lambda** 상에서 자동 실행되며
+- 전략 검증은 로컬에서 **백테스트**를 통해 가능합니다.
+
+---
+
+## ✅ 주요 특징
+
+- **SMA(5) > SMA(20)** 시 매수, 반대일 경우 수익 조건에 따라 매도
+- **바이낸스(Binance) 실거래 연동** (ccxt 사용)
+- **초기 자산 100 USDT**, 거래당 20 USDT 투자
+- **수수료(0.2%) 포함 수익 조건 만족 시에만 매도**
+- **최근 거래 상태(S3 또는 DynamoDB)에 저장 및 복원**
+- **AWS Serverless Framework**로 인프라 구성
+- **Python 3.11 + Poetry** 환경
+- **로컬 백테스트 CLI 지원**
+  ```bash
+  python backtest.py --start 2024-05-01 --end 2024-05-30
