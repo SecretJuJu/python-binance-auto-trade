@@ -223,36 +223,229 @@ npm run test:notifications
 
 ## 🔐 AWS IAM 권한 설정
 
-배포를 위해 적절한 AWS IAM 권한이 필요합니다.
+배포를 위해 적절한 AWS IAM 권한이 필요합니다. 개발/테스트 단계에서는 관리자 권한을, 프로덕션에서는 최소 권한을 권장합니다.
 
-### GitHub Actions용 IAM 사용자 생성
+### 1. GitHub Actions용 IAM 사용자 생성
+
+#### 관리자 권한 설정 (개발/테스트용)
 
 ```bash
-# 1. IAM 사용자 생성
+# IAM 사용자 생성
 aws iam create-user --user-name bitcoin-trader-deployer
 
-# 2. 관리자 권한 부여 (개발 단계 권장)
+# 관리자 권한 부여 (개발 단계 권장)
 aws iam attach-user-policy \
     --user-name bitcoin-trader-deployer \
     --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
 
-# 3. 액세스 키 생성
+# 액세스 키 생성 및 저장
 aws iam create-access-key --user-name bitcoin-trader-deployer
 ```
 
-### 최소 권한 설정 (프로덕션 권장)
+#### 최소 권한 설정 (프로덕션용)
+
+배포를 위해 최소한으로 필요한 권한들입니다:
+
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "LambdaPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:CreateFunction",
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:DeleteFunction",
+                "lambda:GetFunction",
+                "lambda:ListFunctions",
+                "lambda:AddPermission",
+                "lambda:RemovePermission",
+                "lambda:InvokeFunction",
+                "lambda:PublishLayerVersion",
+                "lambda:DeleteLayerVersion"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3Permissions",
+            "Effect": "Allow",
+            "Action": [
+                "s3:CreateBucket",
+                "s3:DeleteBucket",
+                "s3:GetBucketLocation",
+                "s3:GetBucketPolicy",
+                "s3:ListBucket",
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetBucketVersioning",
+                "s3:PutBucketVersioning"
+            ],
+            "Resource": [
+                "arn:aws:s3:::bitcoin-auto-trader-*",
+                "arn:aws:s3:::bitcoin-auto-trader-*/*"
+            ]
+        },
+        {
+            "Sid": "DynamoDBPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:DeleteTable",
+                "dynamodb:DescribeTable",
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Scan",
+                "dynamodb:Query"
+            ],
+            "Resource": "arn:aws:dynamodb:*:*:table/bitcoin-auto-trader-*"
+        },
+        {
+            "Sid": "SNSPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "sns:CreateTopic",
+                "sns:DeleteTopic",
+                "sns:GetTopicAttributes",
+                "sns:SetTopicAttributes",
+                "sns:Subscribe",
+                "sns:Unsubscribe",
+                "sns:Publish",
+                "sns:ListTopics"
+            ],
+            "Resource": "arn:aws:sns:*:*:bitcoin-auto-trader-*"
+        },
+        {
+            "Sid": "CloudWatchPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "logs:DeleteLogGroup"
+            ],
+            "Resource": "arn:aws:logs:*:*:log-group:/aws/lambda/bitcoin-auto-trader-*"
+        },
+        {
+            "Sid": "EventBridgePermissions",
+            "Effect": "Allow",
+            "Action": [
+                "events:PutRule",
+                "events:DeleteRule",
+                "events:DescribeRule",
+                "events:PutTargets",
+                "events:RemoveTargets",
+                "events:ListRules",
+                "events:ListTargetsByRule"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudFormationPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "cloudformation:CreateStack",
+                "cloudformation:UpdateStack",
+                "cloudformation:DeleteStack",
+                "cloudformation:DescribeStacks",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:DescribeStackResources",
+                "cloudformation:GetTemplate",
+                "cloudformation:ValidateTemplate",
+                "cloudformation:ListStacks",
+                "cloudformation:ListStackResources"
+            ],
+            "Resource": "arn:aws:cloudformation:*:*:stack/bitcoin-auto-trader-*/*"
+        },
+        {
+            "Sid": "IAMPermissions",
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:GetRole",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PassRole"
+            ],
+            "Resource": [
+                "arn:aws:iam::*:role/bitcoin-auto-trader-*",
+                "arn:aws:iam::*:policy/bitcoin-auto-trader-*"
+            ]
+        }
+    ]
+}
+```
+
+**정책 파일 생성 및 적용:**
 
 ```bash
+# 위 JSON을 파일로 저장
+cat > minimal-iam-policy.json << 'EOF'
+{위의 JSON 내용}
+EOF
+
 # 최소 권한 정책 생성
 aws iam create-policy \
-    --policy-name BitcoinTraderDeployPolicy \
-    --policy-document file://docs/minimal-iam-policy.json
+    --policy-name BitcoinTraderMinimalPolicy \
+    --policy-document file://minimal-iam-policy.json
 
 # 최소 권한 연결
 aws iam attach-user-policy \
     --user-name bitcoin-trader-deployer \
-    --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/BitcoinTraderDeployPolicy
+    --policy-arn arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):policy/BitcoinTraderMinimalPolicy
 ```
+
+### 2. 권한 확인 및 검증
+
+```bash
+# 현재 사용자 확인
+aws sts get-caller-identity
+
+# 사용자 권한 확인
+aws iam list-attached-user-policies --user-name bitcoin-trader-deployer
+
+# 액세스 키 상태 확인
+aws iam list-access-keys --user-name bitcoin-trader-deployer
+```
+
+### 3. GitHub Secrets 설정 방법
+
+Repository > Settings > Secrets and variables > Actions에서 다음을 추가:
+
+| Secret Name | 설명 | 예시 |
+|-------------|------|------|
+| `AWS_ACCESS_KEY_ID` | IAM 사용자의 액세스 키 | `AKIA...` |
+| `AWS_SECRET_ACCESS_KEY` | IAM 사용자의 시크릿 키 | `wJalr...` |
+| `BINANCE_API_KEY` | 바이낸스 API 키 | `NhqP...` |
+| `BINANCE_SECRET` | 바이낸스 시크릿 키 | `lsb...` |
+
+### 4. 권한 트러블슈팅
+
+#### 권한 부족 오류 해결
+```bash
+# CloudFormation 권한 오류
+aws cloudformation describe-stacks --stack-name bitcoin-auto-trader-dev
+
+# Lambda 권한 오류
+aws lambda get-function --function-name bitcoin-auto-trader-dev-trade
+
+# S3 권한 오류
+aws s3 ls s3://bitcoin-auto-trader-dev-state-store
+```
+
+#### 권한 최적화 (보안 강화)
+- 특정 리소스에만 권한 제한
+- 조건부 정책 사용 (IP, MFA 등)
+- 정기적인 권한 감사 및 갱신
 
 **📚 상세 권한 정보**: [`docs/IAM_POLICY.md`](docs/IAM_POLICY.md) 참조
 
@@ -262,20 +455,27 @@ aws iam attach-user-policy \
 
 master 브랜치에 push하면 자동으로 AWS Lambda에 배포됩니다.
 
-### 1. GitHub Secrets 설정
+### 1. 사전 준비사항
+
+⚠️ **반드시 위의 [🔐 AWS IAM 권한 설정](#-aws-iam-권한-설정) 섹션을 먼저 완료하세요.**
+
+### 2. GitHub Secrets 설정
 
 Repository Settings > Secrets and variables > Actions에서 다음 변수들을 설정하세요:
 
-```
-AWS_ACCESS_KEY_ID: your_aws_access_key (위에서 생성한 액세스 키)
-AWS_SECRET_ACCESS_KEY: your_aws_secret_key (위에서 생성한 시크릿 키)
-BINANCE_API_KEY: your_binance_api_key
-BINANCE_SECRET: your_binance_secret_key
-```
+| Secret Name | 값 | 설명 |
+|-------------|-----|------|
+| `AWS_ACCESS_KEY_ID` | `AKIA...` | IAM 사용자의 액세스 키 |
+| `AWS_SECRET_ACCESS_KEY` | `wJalr...` | IAM 사용자의 시크릿 키 |
+| `BINANCE_API_KEY` | `NhqP...` | 바이낸스 API 키 (현물 거래 권한) |
+| `BINANCE_SECRET` | `lsb...` | 바이낸스 시크릿 키 |
 
-**참고**: SNS 토픽은 배포 시 자동으로 생성되므로 ARN을 직접 설정할 필요 없습니다.
+**💡 Tips:**
+- SNS 토픽은 배포 시 자동으로 생성되므로 ARN을 직접 설정할 필요 없습니다
+- API 키는 바이낸스에서 **현물 거래 권한만** 활성화하세요
+- 실제 값은 절대 코드에 직접 입력하지 마세요
 
-### 2. 자동 배포 프로세스
+### 3. 자동 배포 프로세스
 
 ```bash
 # 코드 변경 후 master에 push
@@ -287,6 +487,19 @@ git push origin master
 # 1. 코드 품질 검사 (lint, format)
 # 2. 설정 파일 유효성 검사
 # 3. AWS Lambda 배포
+```
+
+### 4. 배포 상태 확인
+
+```bash
+# GitHub Actions 로그 확인
+# Repository > Actions 탭에서 워크플로우 실행 상태 확인
+
+# 배포 후 AWS 리소스 확인
+aws cloudformation describe-stacks --stack-name bitcoin-auto-trader-dev
+
+# Lambda 함수 테스트
+aws lambda invoke --function-name bitcoin-auto-trader-dev-trade response.json
 ```
 
 ---
