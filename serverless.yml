@@ -15,7 +15,7 @@ provider:
       Ref: TradingNotificationTopic
     S3_BUCKET: ${self:service}-${self:provider.stage}-trading-state
     DYNAMODB_TABLE: ${self:service}-${self:provider.stage}-trading-state
-    iamRoleStatements:
+  iamRoleStatements:
     - Effect: Allow
       Action:
         - s3:GetObject
@@ -85,3 +85,5 @@ custom:
   pythonRequirements:
     dockerizePip: true
     layer: true
+    usePoetry: true
+    poetryPythonBin: python3

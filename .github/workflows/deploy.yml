@@ -73,6 +73,23 @@ jobs:
       with:
         python-version: 3.11
 
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pypoetry
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install Python dependencies  
+      run: |
+        poetry install
+
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -80,8 +97,6 @@ jobs:
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
-      with:
-        version: 9
 
     - name: Get pnpm store directory
       shell: bash
@@ -99,6 +114,12 @@ jobs:
     - name: Install Node.js dependencies
       run: pnpm install --frozen-lockfile
 
+    - name: Validate serverless configuration
+      run: |
+        echo "🔍 Validating serverless.yml..."
+        serverless print --stage dev | head -20
+        echo "✅ Serverless configuration validation passed!"
+
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -107,7 +128,10 @@ jobs:
         aws-region: ap-northeast-2
 
     - name: Install Serverless Framework
-      run: npm install -g serverless
+      run: |
+        npm install -g serverless
+        # pnpm으로 플러그인 설치
+        pnpm install
 
     - name: Deploy to AWS Lambda
       env:
