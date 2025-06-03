@@ -308,7 +308,7 @@ export BINANCE_API_KEY=your_api_key
 export BINANCE_SECRET=your_secret_key
 
 # Serverless 배포 (SNS 토픽 자동 생성)
-npx serverless deploy
+npx serverless deploy --stage dev
 
 # 또는 npm script 사용
 npm run deploy

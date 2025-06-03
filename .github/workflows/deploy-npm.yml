@@ -96,7 +96,7 @@ jobs:
       run: |
         echo "🚀 Starting deployment..."
         echo "📦 Deploying Bitcoin Trading Bot to AWS Lambda..."
-        serverless deploy --verbose
+        serverless deploy --stage dev --verbose
         echo "✅ Deployment completed successfully!"
         echo "🎯 Lambda function is now running and will execute every 5 minutes"
 
