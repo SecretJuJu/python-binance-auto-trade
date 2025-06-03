@@ -1,10 +1,7 @@
-name: Deploy Bitcoin Trading Bot
+name: Deploy Bitcoin Trading Bot (npm fallback)
 
 on:
-  push:
-    branches: [master, main]  # master 또는 main 브랜치에 push시 실행
-  pull_request:
-    branches: [master, main]
+  workflow_dispatch:  # 수동 실행용 백업 워크플로우
 
 jobs:
   test:
@@ -41,7 +38,6 @@ jobs:
 
     - name: Code quality checks
       run: |
-        # 코드 포맷팅 검사
         echo "🔍 Checking import sorting..."
         poetry run isort --check-only *.py
         
@@ -62,7 +58,6 @@ jobs:
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
 
     steps:
     - name: Checkout code
@@ -78,26 +73,11 @@ jobs:
       with:
         node-version: '18'
 
-    - name: Setup pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: 9
-
-    - name: Get pnpm store directory
-      shell: bash
+    - name: Install Node.js dependencies (npm)
       run: |
-        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-    - name: Setup pnpm cache
-      uses: actions/cache@v3
-      with:
-        path: ${{ env.STORE_PATH }}
-        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-        restore-keys: |
-          ${{ runner.os }}-pnpm-store-
-
-    - name: Install Node.js dependencies
-      run: pnpm install --frozen-lockfile
+        # pnpm-lock.yaml을 삭제하고 npm으로 설치
+        rm -f pnpm-lock.yaml
+        npm install
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
