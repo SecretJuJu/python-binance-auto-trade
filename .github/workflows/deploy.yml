@@ -1,0 +1,106 @@
+name: Deploy Bitcoin Trading Bot
+
+on:
+  push:
+    branches: [master, main]  # master 또는 main 브랜치에 push시 실행
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.11]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pypoetry
+        key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-poetry-
+
+    - name: Install Poetry
+      run: |
+        curl -sSL https://install.python-poetry.org | python3 -
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Install dependencies
+      run: |
+        poetry install
+
+    - name: Code quality checks
+      run: |
+        # 코드 포맷팅 검사
+        poetry run isort --check-only *.py
+        poetry run black --check *.py
+        
+        # 린트 검사
+        poetry run flake8 *.py
+
+    - name: Configuration validation
+      run: |
+        # 설정 파일 유효성 검사
+        poetry run python config_manager.py validate
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install Node.js dependencies
+      run: npm ci
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ap-northeast-2
+
+    - name: Install Serverless Framework
+      run: npm install -g serverless
+
+    - name: Deploy to AWS Lambda
+      env:
+        BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+        BINANCE_SECRET: ${{ secrets.BINANCE_SECRET }}
+      run: |
+        echo "🚀 Starting deployment..."
+        serverless deploy --verbose
+        echo "✅ Deployment completed successfully!"
+
+    - name: Post-deployment notification
+      if: success()
+      run: |
+        echo "🎉 Bitcoin Trading Bot deployed successfully to AWS Lambda!"
+        
+    - name: Deployment failure notification
+      if: failure()
+      run: |
+        echo "❌ Deployment failed! Please check the logs." 

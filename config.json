@@ -1,0 +1,30 @@
+{
+  "trading": {
+    "symbol": "BTC/USDT",
+    "timeframe": "5m",
+    "sma_short": 7,
+    "sma_long": 25,
+    "trade_amount": 50.0,
+    "profit_threshold": 0.003,
+    "trading_fee": 0.001,
+    "initial_balance": 100.0
+  },
+  "exchange": {
+    "name": "binance",
+    "sandbox": false,
+    "enable_rate_limit": true
+  },
+  "aws": {
+    "lambda_timeout": 300,
+    "memory_size": 512,
+    "enable_notifications": true
+  },
+  "backtest": {
+    "default_start_date": "2024-12-01",
+    "default_end_date": "2024-12-05",
+    "chart_size": [
+      15,
+      12
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "bitcoin-auto-trader",
+  "version": "1.0.0",
+  "description": "AI-based Bitcoin auto trading system using SMA crossover strategy",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "remove": "serverless remove",
+    "logs": "serverless logs -f autoTrade",
+    "invoke": "serverless invoke -f autoTrade",
+    "lint": "poetry run flake8 *.py",
+    "format": "poetry run isort *.py && poetry run black *.py",
+    "check": "poetry run flake8 *.py && echo 'All checks passed!'",
+    "config": "poetry run python config_manager.py",
+    "config:show": "poetry run python config_manager.py show --trading",
+    "config:presets": "poetry run python config_manager.py presets",
+    "config:validate": "poetry run python config_manager.py validate",
+    "test:notifications": "poetry run python test_notifications.py",
+    "backtest": "poetry run python backtest.py --start 2024-12-01 --end 2024-12-05",
+    "backtest:chart": "poetry run python backtest.py --start 2024-12-01 --end 2024-12-05 --plot",
+    "backtest:month": "poetry run python backtest.py --start 2024-11-01 --end 2024-12-01",
+    "backtest:week": "poetry run python backtest.py --start 2024-11-25 --end 2024-12-02"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-python-requirements": "^6.0.0"
+  }
+} 
