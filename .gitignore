@@ -11,7 +11,17 @@ __pycache__/
 # AWS credentials
 .aws/
 
-# Serverless directories
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/.terraform.lock.hcl
+terraform/terraform.tfvars
+terraform/crash.log
+terraform/crash.*.log
+terraform/*tfplan*
+
+# Serverless directories (legacy)
 .serverless/
 
 # Distribution / packaging

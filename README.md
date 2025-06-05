@@ -3,7 +3,7 @@
 이 프로젝트는 단순 이동평균 교차(SMA Crossover) 전략을 기반으로  
 BTC/USDT 마켓에서 자동으로 매수/매도 거래를 수행하는 서버리스 트레이딩 봇입니다.
 
-- 실거래는 **AWS Lambda** 상에서 자동 실행되며
+- 실거래는 **AWS ECS Fargate** 상에서 자동 실행되며
 - 전략 검증은 로컬에서 **백테스트**를 통해 가능합니다.
 
 ---
@@ -12,11 +12,11 @@ BTC/USDT 마켓에서 자동으로 매수/매도 거래를 수행하는 서버�
 
 - **SMA(5) > SMA(20)** 시 매수, 반대일 경우 수익 조건에 따라 매도
 - **바이낸스(Binance) 실거래 연동** (ccxt 사용)
-- **5분 간격 자동 실행** - AWS EventBridge 스케줄링
+- **10분 간격 자동 실행** - AWS EventBridge 스케줄링
 - **초기 자산 100 USDT**, 거래당 90 USDT 투자 (공격적 설정)
 - **수수료(0.2%) 포함 수익 조건 만족 시에만 매도**
-- **최근 거래 상태(S3 또는 DynamoDB)에 저장 및 복원**
-- **AWS Serverless Framework**로 인프라 구성
+- **최근 거래 상태(S3)에 저장 및 복원**
+- **AWS Terraform + ECS Fargate**로 인프라 구성
 - **Python 3.11 + Poetry** 환경
 - **로컬 백테스트 CLI 지원**
 
@@ -26,24 +26,87 @@ BTC/USDT 마켓에서 자동으로 매수/매도 거래를 수행하는 서버�
 
 ```
 python-binance-auto-trade/
-├── lambda_handler.py      # Lambda 메인 핸들러
+├── fargate_main.py       # ECS Fargate 메인 핸들러
 ├── trade.py              # 바이낸스 실거래 로직
-├── state_store.py        # 거래 상태 저장/조회 (S3/DynamoDB)
+├── state_store.py        # 거래 상태 저장/조회 (S3)
 ├── backtest.py           # 로컬 백테스트 CLI
 ├── config.json           # 거래 설정 파일 (SMA, 거래금액 등)
 ├── config_loader.py      # 설정 파일 로더
 ├── config_manager.py     # 설정 관리 CLI 도구
-├── serverless.yml        # Serverless Framework 설정
+├── terraform/            # Terraform 인프라 설정
+│   ├── main.tf           # 메인 인프라 정의
+│   ├── variables.tf      # 변수 정의
+│   ├── outputs.tf        # 출력값 정의
+│   └── security.tf       # 보안 그룹 정의
+├── Dockerfile            # Docker 컨테이너 정의
+├── deploy-terraform.sh   # Terraform 배포 스크립트
+├── destroy.sh            # 인프라 삭제 스크립트
 ├── pyproject.toml        # Poetry 의존성 관리
-├── requirements.txt      # Lambda용 의존성
-├── package.json          # Serverless 플러그인 관리
-├── env.example           # 환경 변수 예시
+├── requirements.txt      # Docker 컨테이너용 의존성
+├── package.json          # 설정 관리 도구
 └── README.md
 ```
 
 ---
 
-## 🚀 설치 및 설정
+## 🚀 빠른 시작
+
+### 1. 환경 설정
+
+```bash
+# 의존성 설치
+poetry install
+npm install
+
+# 환경 변수 설정
+export BINANCE_API_KEY="your_api_key"
+export BINANCE_SECRET="your_secret"
+export AWS_REGION="ap-northeast-2"  # 선택사항
+```
+
+### 2. 배포
+
+```bash
+# Terraform으로 AWS 인프라 배포
+./deploy-terraform.sh
+
+# 또는 수동 배포
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+### 3. 알림 설정
+
+```bash
+# SNS 토픽 ARN 가져오기
+SNS_TOPIC_ARN=$(cd terraform && terraform output -raw sns_topic_arn)
+
+# 이메일 구독 추가
+aws sns subscribe \
+    --topic-arn $SNS_TOPIC_ARN \
+    --protocol email \
+    --notification-endpoint your-email@example.com
+```
+
+### 4. 모니터링
+
+```bash
+# 실시간 로그 확인
+aws logs tail /ecs/bitcoin-auto-trader --follow
+
+# 스케줄 일시 중지/재개
+aws events disable-rule --name bitcoin-auto-trader-schedule
+aws events enable-rule --name bitcoin-auto-trader-schedule
+
+# 인프라 삭제
+./destroy.sh
+```
+
+---
+
+## 🛠️ 상세 설치 및 설정
 
 ### 1. 의존성 설치
 

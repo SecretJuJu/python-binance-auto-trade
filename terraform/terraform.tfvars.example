@@ -1,0 +1,27 @@
+# AWS 설정
+aws_region = "ap-northeast-2"
+
+# Binance API 설정 (실제 값은 환경변수 또는 보안된 방식으로 설정)
+binance_api_key = ""
+binance_secret  = ""
+
+# 프로젝트 설정
+project_name = "bitcoin-auto-trader"
+
+# ECS 태스크 리소스 설정
+task_cpu    = 512  # 0.5 vCPU
+task_memory = 1024 # 1 GB
+
+# 스케줄 설정 (10분마다 실행)
+schedule_expression = "rate(10 minutes)"
+
+# 알림 설정
+notify_on_success = false
+
+# 태그 설정
+common_tags = {
+  Project     = "BitcoinAutoTrader"
+  Environment = "production"
+  ManagedBy   = "terraform"
+  Owner       = "your-name"
+} 

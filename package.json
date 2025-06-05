@@ -3,10 +3,17 @@
   "version": "1.0.0",
   "description": "AI-based Bitcoin auto trading system using SMA crossover strategy",
   "scripts": {
-    "deploy": "serverless deploy --stage dev",
-    "remove": "serverless remove --stage dev",
-    "logs": "serverless logs -f autoTrade --stage dev",
-    "invoke": "serverless invoke -f autoTrade --stage dev",
+    "deploy": "./deploy-terraform.sh",
+    "destroy": "./destroy.sh",
+    "logs": "aws logs tail /ecs/bitcoin-auto-trader --follow",
+    "logs:errors": "aws logs filter-log-events --log-group-name /ecs/bitcoin-auto-trader --filter-pattern ERROR",
+    "terraform:init": "cd terraform && terraform init",
+    "terraform:plan": "cd terraform && terraform plan",
+    "terraform:apply": "cd terraform && terraform apply",
+    "terraform:destroy": "cd terraform && terraform destroy",
+    "task:run": "bash -c 'CLUSTER_NAME=$(cd terraform && terraform output -raw ecs_cluster_name); TASK_DEF_ARN=$(aws ecs list-task-definitions --family-prefix bitcoin-auto-trader-task --query \"taskDefinitionArns[0]\" --output text); SUBNET_ID=$(aws ec2 describe-subnets --filters \"Name=map-public-ip-on-launch,Values=true\" --query \"Subnets[0].SubnetId\" --output text); SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters \"Name=group-name,Values=bitcoin-auto-trader-ecs-tasks\" --query \"SecurityGroups[0].GroupId\" --output text); aws ecs run-task --cluster $CLUSTER_NAME --task-definition $TASK_DEF_ARN --launch-type FARGATE --network-configuration \"awsvpcConfiguration={subnets=[$SUBNET_ID],assignPublicIp=ENABLED,securityGroups=[$SECURITY_GROUP_ID]}\"'",
+    "schedule:disable": "aws events disable-rule --name bitcoin-auto-trader-schedule",
+    "schedule:enable": "aws events enable-rule --name bitcoin-auto-trader-schedule",
     "lint": "poetry run flake8 *.py",
     "format": "poetry run isort *.py && poetry run black *.py",
     "check": "poetry run flake8 *.py && echo 'All checks passed!'",
@@ -21,10 +28,7 @@
     "backtest:week": "poetry run python backtest.py --start 2024-11-25 --end 2024-12-02",
     "requirements": "poetry export --without-hashes -f requirements.txt -o requirements.txt || echo 'Poetry export not available'"
   },
-  "devDependencies": {
-    "serverless": "^3.38.0",
-    "serverless-python-requirements": "^6.0.0"
-  },
+  "devDependencies": {},
   "packageManager": "pnpm@9.15.4",
   "engines": {
     "node": ">=18",
