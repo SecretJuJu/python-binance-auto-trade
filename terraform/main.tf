@@ -37,26 +37,29 @@ resource "aws_ecr_repository" "bitcoin_trading" {
   name                 = var.ecr_repository_name
   image_tag_mutability = "MUTABLE"
 
-  lifecycle_policy {
-    policy = jsonencode({
-      rules = [
-        {
-          rulePriority = 1
-          description  = "Keep only 10 most recent images"
-          selection = {
-            tagStatus   = "any"
-            countType   = "imageCountMoreThan"
-            countNumber = 10
-          }
-          action = {
-            type = "expire"
-          }
-        }
-      ]
-    })
-  }
-
   tags = var.common_tags
+}
+
+# ECR Lifecycle Policy
+resource "aws_ecr_lifecycle_policy" "bitcoin_trading" {
+  repository = aws_ecr_repository.bitcoin_trading.name
+
+  policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1
+        description  = "Keep only 10 most recent images"
+        selection = {
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
+        }
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
 }
 
 # S3 Bucket for trading state
