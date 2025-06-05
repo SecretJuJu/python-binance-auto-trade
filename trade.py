@@ -46,14 +46,16 @@ class TradingBot:
             # Convert to list of dictionaries
             data = []
             for candle in ohlcv:
-                data.append({
-                    "timestamp": candle[0],
-                    "open": float(candle[1]),
-                    "high": float(candle[2]),
-                    "low": float(candle[3]),
-                    "close": float(candle[4]),
-                    "volume": float(candle[5])
-                })
+                data.append(
+                    {
+                        "timestamp": candle[0],
+                        "open": float(candle[1]),
+                        "high": float(candle[2]),
+                        "low": float(candle[3]),
+                        "close": float(candle[4]),
+                        "volume": float(candle[5]),
+                    }
+                )
 
             return data
         except Exception as e:
@@ -62,6 +64,7 @@ class TradingBot:
 
     def calculate_sma(self, data: List[Dict]) -> List[Dict]:
         """단순 이동평균 계산"""
+
         # SMA 계산을 위한 함수
         def simple_moving_average(values: List[float], window: int) -> List[float]:
             sma = []
@@ -69,22 +72,22 @@ class TradingBot:
                 if i + 1 < window:
                     sma.append(None)  # 충분한 데이터가 없으면 None
                 else:
-                    avg = sum(values[i+1-window:i+1]) / window
+                    avg = sum(values[i + 1 - window : i + 1]) / window
                     sma.append(avg)
             return sma
 
         # close 가격만 추출
         close_prices = [candle["close"] for candle in data]
-        
+
         # SMA 계산
         sma_short_values = simple_moving_average(close_prices, self.sma_short)
         sma_long_values = simple_moving_average(close_prices, self.sma_long)
-        
+
         # 원본 데이터에 SMA 추가
         for i, candle in enumerate(data):
             candle[f"sma_{self.sma_short}"] = sma_short_values[i]
             candle[f"sma_{self.sma_long}"] = sma_long_values[i]
-        
+
         return data
 
     def get_current_balance(self) -> Dict[str, float]:
