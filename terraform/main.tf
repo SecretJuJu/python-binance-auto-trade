@@ -38,6 +38,12 @@ resource "aws_ecr_repository" "bitcoin_trading" {
   image_tag_mutability = "MUTABLE"
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 # ECR Lifecycle Policy
@@ -66,6 +72,12 @@ resource "aws_ecr_lifecycle_policy" "bitcoin_trading" {
 resource "aws_s3_bucket" "trading_state" {
   bucket = "${var.project_name}-state-${data.aws_caller_identity.current.account_id}-${data.aws_region.current.name}"
   tags   = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 resource "aws_s3_bucket_versioning" "trading_state" {
@@ -89,6 +101,12 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "trading_state" {
 resource "aws_sns_topic" "trading_alerts" {
   name = "${var.project_name}-alerts"
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 # CloudWatch Log Group
@@ -96,6 +114,12 @@ resource "aws_cloudwatch_log_group" "bitcoin_trading" {
   name              = "/ecs/${var.project_name}"
   retention_in_days = 30
   tags              = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 # ECS Cluster
@@ -108,6 +132,12 @@ resource "aws_ecs_cluster" "bitcoin_trading" {
   }
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 # IAM Role for ECS Task Execution
@@ -128,6 +158,12 @@ resource "aws_iam_role" "ecs_execution_role" {
   })
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
@@ -153,6 +189,12 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 resource "aws_iam_role_policy" "ecs_task_policy" {
@@ -193,6 +235,12 @@ resource "aws_secretsmanager_secret" "binance_credentials" {
   name        = "${var.project_name}/binance"
   description = "Binance API credentials for Bitcoin trading bot"
   tags        = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 # ECS Task Definition
@@ -254,6 +302,10 @@ resource "aws_ecs_task_definition" "bitcoin_trading" {
   ])
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes = [tags]
+  }
 }
 
 # IAM Role for EventBridge
@@ -274,6 +326,12 @@ resource "aws_iam_role" "eventbridge_role" {
   })
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 resource "aws_iam_role_policy" "eventbridge_policy" {
@@ -311,6 +369,12 @@ resource "aws_cloudwatch_event_rule" "bitcoin_trading_schedule" {
   schedule_expression = var.schedule_expression
 
   tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 }
 
 # EventBridge Target - ECS Task
@@ -332,4 +396,6 @@ resource "aws_cloudwatch_event_target" "ecs_target" {
       security_groups  = [aws_security_group.ecs_tasks.id]
     }
   }
-} 
+}
+
+ 

@@ -16,4 +16,10 @@ resource "aws_security_group" "ecs_tasks" {
   tags = merge(var.common_tags, {
     Name = "${var.project_name}-ecs-tasks"
   })
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
 } 

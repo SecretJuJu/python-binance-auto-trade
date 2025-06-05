@@ -40,6 +40,8 @@ variable "notify_on_success" {
   default     = false
 }
 
+
+
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
