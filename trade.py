@@ -1,10 +1,9 @@
 import logging
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import ccxt
-import pandas as pd
 
 from config_loader import config_loader
 from notification import notifier
@@ -37,29 +36,56 @@ class TradingBot:
             }
         )
 
-    def get_ohlcv_data(self, limit: int = 100) -> pd.DataFrame:
+    def get_ohlcv_data(self, limit: int = 100) -> List[Dict]:
         """OHLCV 데이터 조회"""
         try:
             ohlcv = self.exchange.fetch_ohlcv(
                 symbol=self.symbol, timeframe=self.timeframe, limit=limit
             )
 
-            df = pd.DataFrame(
-                ohlcv, columns=["timestamp", "open", "high", "low", "close", "volume"]
-            )
-            df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-            df.set_index("timestamp", inplace=True)
+            # Convert to list of dictionaries
+            data = []
+            for candle in ohlcv:
+                data.append({
+                    "timestamp": candle[0],
+                    "open": float(candle[1]),
+                    "high": float(candle[2]),
+                    "low": float(candle[3]),
+                    "close": float(candle[4]),
+                    "volume": float(candle[5])
+                })
 
-            return df
+            return data
         except Exception as e:
             logger.error(f"Failed to fetch OHLCV data: {e}")
             raise
 
-    def calculate_sma(self, df: pd.DataFrame) -> pd.DataFrame:
+    def calculate_sma(self, data: List[Dict]) -> List[Dict]:
         """단순 이동평균 계산"""
-        df[f"sma_{self.sma_short}"] = df["close"].rolling(window=self.sma_short).mean()
-        df[f"sma_{self.sma_long}"] = df["close"].rolling(window=self.sma_long).mean()
-        return df
+        # SMA 계산을 위한 함수
+        def simple_moving_average(values: List[float], window: int) -> List[float]:
+            sma = []
+            for i in range(len(values)):
+                if i + 1 < window:
+                    sma.append(None)  # 충분한 데이터가 없으면 None
+                else:
+                    avg = sum(values[i+1-window:i+1]) / window
+                    sma.append(avg)
+            return sma
+
+        # close 가격만 추출
+        close_prices = [candle["close"] for candle in data]
+        
+        # SMA 계산
+        sma_short_values = simple_moving_average(close_prices, self.sma_short)
+        sma_long_values = simple_moving_average(close_prices, self.sma_long)
+        
+        # 원본 데이터에 SMA 추가
+        for i, candle in enumerate(data):
+            candle[f"sma_{self.sma_short}"] = sma_short_values[i]
+            candle[f"sma_{self.sma_long}"] = sma_long_values[i]
+        
+        return data
 
     def get_current_balance(self) -> Dict[str, float]:
         """현재 잔고 조회"""
@@ -191,25 +217,25 @@ class TradingBot:
             notifier.notify_error("매도 주문 실패", error_msg)
             raise
 
-    def should_buy(self, df: pd.DataFrame, current_state: Dict[str, Any]) -> bool:
+    def should_buy(self, data: List[Dict], current_state: Dict[str, Any]) -> bool:
         """매수 조건 확인"""
         if current_state.get("position") is not None:
             return False  # 이미 포지션 보유 중
 
-        latest = df.iloc[-1]
+        latest = data[-1]
         sma_short = latest[f"sma_{self.sma_short}"]
         sma_long = latest[f"sma_{self.sma_long}"]
 
         # SMA(7) > SMA(25) 매수 신호
-        return sma_short > sma_long and not pd.isna(sma_short) and not pd.isna(sma_long)
+        return sma_short is not None and sma_long is not None and sma_short > sma_long
 
-    def should_sell(self, df: pd.DataFrame, current_state: Dict[str, Any]) -> bool:
+    def should_sell(self, data: List[Dict], current_state: Dict[str, Any]) -> bool:
         """매도 조건 확인"""
         position = current_state.get("position")
         if position is None:
             return False  # 보유 포지션 없음
 
-        latest = df.iloc[-1]
+        latest = data[-1]
         current_price = latest["close"]
         buy_price = position["buy_price"]
 
@@ -223,7 +249,7 @@ class TradingBot:
 
         # SMA(7) < SMA(25) and 수익률 >= 0.3%
         sma_condition = (
-            sma_short < sma_long and not pd.isna(sma_short) and not pd.isna(sma_long)
+            sma_short is not None and sma_long is not None and sma_short < sma_long
         )
         profit_condition = profit_rate >= self.profit_threshold
 
@@ -233,8 +259,8 @@ class TradingBot:
         """전략 실행"""
         try:
             # OHLCV 데이터 조회 및 SMA 계산
-            df = self.get_ohlcv_data()
-            df = self.calculate_sma(df)
+            data = self.get_ohlcv_data()
+            data = self.calculate_sma(data)
 
             # 현재 잔고 조회
             balance = self.get_current_balance()
@@ -248,7 +274,7 @@ class TradingBot:
             }
 
             # 매수 조건 확인
-            if self.should_buy(df, current_state):
+            if self.should_buy(data, current_state):
                 if balance["USDT"] >= self.trade_amount:
                     order_result = self.place_buy_order(self.trade_amount)
 
@@ -279,7 +305,7 @@ class TradingBot:
                     )
 
             # 매도 조건 확인
-            elif self.should_sell(df, current_state):
+            elif self.should_sell(data, current_state):
                 position = current_state["position"]
                 order_result = self.place_sell_order(position["buy_amount"])
 

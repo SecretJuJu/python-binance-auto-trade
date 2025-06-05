@@ -43,8 +43,8 @@ functions:
       - schedule:
           rate: rate(5 minutes)
           enabled: true
-    layers:
-      - arn:aws:lambda:ap-northeast-2:770693421928:layer:Klayers-p311-pandas:12
+    # layers:
+      # - arn:aws:lambda:ap-northeast-2:770693421928:layer:Klayers-p311-pandas:12
 
 resources:
   Resources:
@@ -85,6 +85,22 @@ plugins:
 custom:
   pythonRequirements:
     dockerizePip: true
-    layer: true
+    layer: false
     usePoetry: false
     fileName: requirements.txt
+    zip: true
+    slim: true
+    strip: false
+    noDeploy:
+      - boto3
+      - botocore
+      - s3transfer
+      - urllib3
+      - six
+      - python-dateutil
+      - jmespath
+    usePipenv: false
+    pipCmdExtraArgs:
+      - --no-cache-dir
+      - --disable-pip-version-check
+    excludeDevDependencies: true
