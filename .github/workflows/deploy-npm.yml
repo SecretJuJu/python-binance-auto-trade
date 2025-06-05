@@ -1,7 +1,21 @@
-name: Deploy Bitcoin Trading Bot (npm fallback)
+name: Deploy Bitcoin Trading Bot (Manual Terraform)
 
 on:
-  workflow_dispatch:  # 수동 실행용 백업 워크플로우
+  workflow_dispatch:  # 수동 실행용 Terraform 배포 워크플로우
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+        - production
+        - staging
+      notify_on_success:
+        description: 'Send notifications on successful execution'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test:
@@ -55,6 +69,20 @@ jobs:
         poetry run python config_manager.py validate
         echo "✅ Configuration validation passed!"
 
+    - name: Setup Terraform (for validation)
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ~1.0
+
+    - name: Terraform validation
+      run: |
+        echo "🔍 Validating Terraform configuration..."
+        cd terraform
+        terraform init -backend=false
+        terraform fmt -check
+        terraform validate
+        echo "✅ Terraform validation passed!"
+
   deploy:
     needs: test
     runs-on: ubuntu-latest
@@ -63,22 +91,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-
-    - name: Install Node.js dependencies (npm)
-      run: |
-        # pnpm-lock.yaml을 삭제하고 npm으로 설치
-        rm -f pnpm-lock.yaml
-        npm install
-
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -86,33 +98,152 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ap-northeast-2
 
-    - name: Install Serverless Framework
-      run: npm install -g serverless
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ~1.0
 
-    - name: Deploy to AWS Lambda
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Create Terraform variables file
       env:
         BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
         BINANCE_SECRET: ${{ secrets.BINANCE_SECRET }}
       run: |
-        echo "🚀 Starting deployment..."
-        echo "📦 Deploying Bitcoin Trading Bot to AWS Lambda..."
-        serverless deploy --stage dev --verbose
-        echo "✅ Deployment completed successfully!"
-        echo "🎯 Lambda function is now running and will execute every 5 minutes"
+        echo "🔍 Creating terraform.tfvars for ${{ inputs.environment }}..."
+        cd terraform
+        cat > terraform.tfvars << EOF
+        aws_region      = "ap-northeast-2"
+        binance_api_key = "$BINANCE_API_KEY"
+        binance_secret  = "$BINANCE_SECRET"
+        project_name    = "bitcoin-auto-trader-${{ inputs.environment }}"
+        task_cpu        = 512
+        task_memory     = 1024
+        schedule_expression = "rate(10 minutes)"
+        notify_on_success = ${{ inputs.notify_on_success }}
+        common_tags = {
+          Project     = "BitcoinAutoTrader"
+          Environment = "${{ inputs.environment }}"
+          ManagedBy   = "terraform"
+          DeployedBy  = "github-actions-manual"
+        }
+        EOF
+        echo "✅ terraform.tfvars created for ${{ inputs.environment }}!"
+
+    - name: Terraform Init
+      run: |
+        echo "🔧 Initializing Terraform..."
+        cd terraform
+        terraform init
+
+    - name: Terraform Plan
+      run: |
+        echo "📋 Planning Terraform deployment for ${{ inputs.environment }}..."
+        cd terraform
+        terraform plan -out=tfplan
+
+    - name: Terraform Apply
+      run: |
+        echo "☁️ Applying Terraform configuration for ${{ inputs.environment }}..."
+        cd terraform
+        terraform apply -auto-approve tfplan
+        echo "✅ Infrastructure deployed successfully!"
+
+    - name: Get ECR repository URL
+      id: ecr
+      run: |
+        cd terraform
+        ECR_REPO_URL=$(terraform output -raw ecr_repository_url)
+        echo "ecr_repo_url=$ECR_REPO_URL" >> $GITHUB_OUTPUT
+        echo "ECR Repository URL: $ECR_REPO_URL"
+
+    - name: Login to Amazon ECR
+      run: |
+        echo "🔐 Logging in to Amazon ECR..."
+        aws ecr get-login-password --region ap-northeast-2 | docker login --username AWS --password-stdin ${{ steps.ecr.outputs.ecr_repo_url }}
+
+    - name: Build and push Docker image
+      run: |
+        echo "🐳 Building Docker image..."
+        docker build -t bitcoin-auto-trader-${{ inputs.environment }} .
+        
+        echo "🚀 Pushing Docker image to ECR..."
+        docker tag bitcoin-auto-trader-${{ inputs.environment }}:latest ${{ steps.ecr.outputs.ecr_repo_url }}:latest
+        docker push ${{ steps.ecr.outputs.ecr_repo_url }}:latest
+        
+        echo "✅ Docker image pushed successfully!"
+
+    - name: Get deployment outputs
+      id: outputs
+      run: |
+        cd terraform
+        ECR_REPO_URL=$(terraform output -raw ecr_repository_url)
+        SNS_TOPIC_ARN=$(terraform output -raw sns_topic_arn)
+        ECS_CLUSTER_NAME=$(terraform output -raw ecs_cluster_name)
+        S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
+        
+        echo "ecr_repo_url=$ECR_REPO_URL" >> $GITHUB_OUTPUT
+        echo "sns_topic_arn=$SNS_TOPIC_ARN" >> $GITHUB_OUTPUT
+        echo "ecs_cluster_name=$ECS_CLUSTER_NAME" >> $GITHUB_OUTPUT
+        echo "s3_bucket_name=$S3_BUCKET_NAME" >> $GITHUB_OUTPUT
+
+    - name: Run initial test task
+      run: |
+        echo "🧪 Running initial test task..."
+        
+        # ECS 태스크 정의 ARN 가져오기
+        TASK_DEF_ARN=$(aws ecs list-task-definitions --family-prefix bitcoin-auto-trader-${{ inputs.environment }}-task --query 'taskDefinitionArns[0]' --output text)
+        
+        # 기본 VPC 서브넷 가져오기
+        SUBNET_ID=$(aws ec2 describe-subnets --filters "Name=map-public-ip-on-launch,Values=true" --query 'Subnets[0].SubnetId' --output text)
+        
+        # 보안 그룹 ID 가져오기
+        SECURITY_GROUP_ID=$(aws ec2 describe-security-groups --filters "Name=group-name,Values=bitcoin-auto-trader-${{ inputs.environment }}-ecs-tasks" --query 'SecurityGroups[0].GroupId' --output text)
+        
+        # 태스크 실행
+        TASK_ARN=$(aws ecs run-task \
+          --cluster ${{ steps.outputs.outputs.ecs_cluster_name }} \
+          --task-definition $TASK_DEF_ARN \
+          --launch-type FARGATE \
+          --network-configuration "awsvpcConfiguration={subnets=[$SUBNET_ID],assignPublicIp=ENABLED,securityGroups=[$SECURITY_GROUP_ID]}" \
+          --query 'tasks[0].taskArn' \
+          --output text)
+        
+        echo "✅ Test task started: $TASK_ARN"
 
     - name: Post-deployment notification
       if: success()
       run: |
-        echo "🎉 Bitcoin Trading Bot deployed successfully to AWS Lambda!"
-        echo "📧 Don't forget to set up SNS email subscription for notifications"
-        echo "📊 Monitor your bot at: https://console.aws.amazon.com/lambda/"
+        echo "🎉 Bitcoin Trading Bot deployed successfully to AWS ECS Fargate (${{ inputs.environment }})!"
+        echo ""
+        echo "📊 Deployment Details:"
+        echo "  • Environment: ${{ inputs.environment }}"
+        echo "  • ECS Cluster: ${{ steps.outputs.outputs.ecs_cluster_name }}"
+        echo "  • ECR Repository: ${{ steps.outputs.outputs.ecr_repo_url }}"
+        echo "  • S3 Bucket: ${{ steps.outputs.outputs.s3_bucket_name }}"
+        echo "  • SNS Topic: ${{ steps.outputs.outputs.sns_topic_arn }}"
+        echo "  • Notifications on success: ${{ inputs.notify_on_success }}"
+        echo ""
+        echo "⏰ Schedule: Trading bot will run every 10 minutes"
+        echo "📧 Set up email notifications:"
+        echo "  aws sns subscribe --topic-arn ${{ steps.outputs.outputs.sns_topic_arn }} --protocol email --notification-endpoint your-email@example.com"
+        echo ""
+        echo "📈 Monitor logs:"
+        echo "  aws logs tail /ecs/bitcoin-auto-trader-${{ inputs.environment }} --follow"
+        echo ""
+        echo "🎛️ Management commands:"
+        echo "  • Pause: aws events disable-rule --name bitcoin-auto-trader-${{ inputs.environment }}-schedule"
+        echo "  • Resume: aws events enable-rule --name bitcoin-auto-trader-${{ inputs.environment }}-schedule"
         
     - name: Deployment failure notification
       if: failure()
       run: |
-        echo "❌ Deployment failed! Please check the logs above."
+        echo "❌ Deployment failed for ${{ inputs.environment }}! Please check the logs above."
         echo "🔧 Common issues:"
         echo "  - Check AWS credentials in GitHub Secrets"
-        echo "  - Verify IAM permissions"
+        echo "  - Verify IAM permissions for ECS, ECR, S3, SNS"
         echo "  - Ensure Binance API keys are valid"
-        echo "📚 See docs/DEPLOYMENT_GUIDE.md for troubleshooting" 
+        echo "  - Check Docker build errors"
+        echo "  - Verify Terraform configuration"
+        echo "📚 See docs/TERRAFORM_DEPLOYMENT.md for troubleshooting" 
