@@ -200,15 +200,15 @@ resource "aws_ecs_task_definition" "bitcoin_trading" {
   cpu                      = var.task_cpu
   memory                   = var.task_memory
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
-  task_role_arn           = aws_iam_role.ecs_task_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([
     {
       name  = "bitcoin-trading-container"
       image = "${aws_ecr_repository.bitcoin_trading.repository_url}:latest"
-      
+
       essential = true
-      
+
       logConfiguration = {
         logDriver = "awslogs"
         options = {
@@ -217,7 +217,7 @@ resource "aws_ecs_task_definition" "bitcoin_trading" {
           "awslogs-stream-prefix" = "ecs"
         }
       }
-      
+
       environment = [
         {
           name  = "SNS_TOPIC_ARN"
@@ -236,7 +236,7 @@ resource "aws_ecs_task_definition" "bitcoin_trading" {
           value = tostring(var.notify_on_success)
         }
       ]
-      
+
       secrets = [
         {
           name      = "BINANCE_API_KEY"
@@ -306,7 +306,7 @@ resource "aws_cloudwatch_event_rule" "bitcoin_trading_schedule" {
   name                = "${var.project_name}-schedule"
   description         = "Run Bitcoin Trading Bot every 10 minutes"
   schedule_expression = var.schedule_expression
-  
+
   tags = var.common_tags
 }
 

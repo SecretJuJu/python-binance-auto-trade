@@ -1,7 +1,7 @@
 # Secrets Manager Secret Version
 resource "aws_secretsmanager_secret_version" "binance_credentials" {
-  count         = var.binance_api_key != "" && var.binance_secret != "" ? 1 : 0
-  secret_id     = aws_secretsmanager_secret.binance_credentials.id
+  count     = var.binance_api_key != "" && var.binance_secret != "" ? 1 : 0
+  secret_id = aws_secretsmanager_secret.binance_credentials.id
   secret_string = jsonencode({
     api_key = var.binance_api_key
     secret  = var.binance_secret
