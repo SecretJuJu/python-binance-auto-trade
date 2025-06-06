@@ -127,6 +127,7 @@ jobs:
         task_memory     = 1024
         schedule_expression = "rate(10 minutes)"
         notify_on_success = false
+        use_s3_instead_of_dynamodb = true
         common_tags = {
           Project     = "BitcoinAutoTrader"
           Environment = "production"
@@ -141,6 +142,19 @@ jobs:
         echo "🔧 Initializing Terraform..."
         cd terraform
         terraform init
+
+    - name: Import existing resources (if any)
+      run: |
+        echo "📦 Checking and importing existing AWS resources..."
+        cd terraform
+        
+        # Make import script executable
+        chmod +x import-existing.sh
+        
+        # Run import script, continue on error (some resources might not exist)
+        ./import-existing.sh || echo "⚠️ Some resources might not exist or already imported - continuing..."
+        
+        echo "✅ Resource import check completed!"
 
     - name: Terraform Plan
       run: |

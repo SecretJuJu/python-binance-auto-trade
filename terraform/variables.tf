@@ -40,7 +40,11 @@ variable "notify_on_success" {
   default     = false
 }
 
-
+variable "use_s3_instead_of_dynamodb" {
+  description = "Whether to use S3 instead of DynamoDB for state storage"
+  type        = bool
+  default     = true
+}
 
 variable "common_tags" {
   description = "Common tags to apply to all resources"

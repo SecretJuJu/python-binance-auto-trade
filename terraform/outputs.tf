@@ -28,6 +28,16 @@ output "s3_bucket_name" {
   value       = aws_s3_bucket.trading_state.id
 }
 
+output "dynamodb_table_name" {
+  description = "DynamoDB table name for trading state"
+  value       = aws_dynamodb_table.trading_state.name
+}
+
+output "dynamodb_table_arn" {
+  description = "DynamoDB table ARN for trading state"
+  value       = aws_dynamodb_table.trading_state.arn
+}
+
 output "sns_topic_arn" {
   description = "SNS topic ARN for notifications"
   value       = aws_sns_topic.trading_alerts.arn

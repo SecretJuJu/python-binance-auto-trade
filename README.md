@@ -620,7 +620,7 @@ Repository Settings > Secrets and variables > Actions에서 다음 변수들을 
 |-------------|-----|------|
 | `AWS_ACCESS_KEY_ID` | `AKIA...` | IAM 사용자의 액세스 키 |
 | `AWS_SECRET_ACCESS_KEY` | `wJalr...` | IAM 사용자의 시크릿 키 |
-| `BINANCE_API_KEY` | `NhqP...` | 바이낸스 API 키 (현물 거래 권한) |
+| `BINANCE_API_KEY` | `NhqP...` | 바이낸스 API 키 |
 | `BINANCE_SECRET` | `lsb...` | 바이낸스 시크릿 키 |
 
 **💡 Tips:**

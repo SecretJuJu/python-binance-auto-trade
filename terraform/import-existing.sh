@@ -133,6 +133,16 @@ else
     echo "❌ Secrets Manager Secret '$SECRET_NAME' 존재하지 않음"
 fi
 
+# DynamoDB Table import
+echo "🗃️ DynamoDB Table import 시도..."
+DYNAMODB_TABLE_NAME="bitcoin-auto-trader-trading-state"
+if aws dynamodb describe-table --table-name $DYNAMODB_TABLE_NAME --region $REGION >/dev/null 2>&1; then
+    echo "✅ DynamoDB Table '$DYNAMODB_TABLE_NAME' 발견됨"
+    terraform import aws_dynamodb_table.trading_state $DYNAMODB_TABLE_NAME || echo "⚠️ DynamoDB Table import 실패 (이미 존재할 수 있음)"
+else
+    echo "❌ DynamoDB Table '$DYNAMODB_TABLE_NAME' 존재하지 않음"
+fi
+
 echo ""
 echo "🎉 기존 리소스 import 과정이 완료되었습니다."
 echo "⚠️ 일부 리소스가 이미 Terraform state에 있거나 존재하지 않을 수 있습니다."

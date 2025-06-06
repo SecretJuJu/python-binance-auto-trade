@@ -97,6 +97,26 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "trading_state" {
   }
 }
 
+# DynamoDB Table for trading state (alternative to S3)
+resource "aws_dynamodb_table" "trading_state" {
+  name         = "${var.project_name}-trading-state"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "trading_pair"
+
+  attribute {
+    name = "trading_pair"
+    type = "S"
+  }
+
+  tags = var.common_tags
+
+  lifecycle {
+    ignore_changes        = [tags]
+    prevent_destroy       = true
+    create_before_destroy = false
+  }
+}
+
 # SNS Topic for notifications
 resource "aws_sns_topic" "trading_alerts" {
   name = "${var.project_name}-alerts"
@@ -215,6 +235,18 @@ resource "aws_iam_role_policy" "ecs_task_policy" {
       {
         Effect = "Allow"
         Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan"
+        ]
+        Resource = aws_dynamodb_table.trading_state.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "sns:Publish"
         ]
         Resource = aws_sns_topic.trading_alerts.arn
@@ -279,12 +311,20 @@ resource "aws_ecs_task_definition" "bitcoin_trading" {
           value = aws_s3_bucket.trading_state.id
         },
         {
+          name  = "DYNAMODB_TABLE"
+          value = aws_dynamodb_table.trading_state.name
+        },
+        {
           name  = "AWS_DEFAULT_REGION"
           value = data.aws_region.current.name
         },
         {
           name  = "NOTIFY_ON_SUCCESS"
           value = tostring(var.notify_on_success)
+        },
+        {
+          name  = "USE_S3"
+          value = tostring(var.use_s3_instead_of_dynamodb)
         }
       ]
 
