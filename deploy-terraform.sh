@@ -10,13 +10,23 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# 환경 변수 확인
+# .env 파일이 있으면 로드
+if [ -f .env ]; then
+    echo -e "${BLUE}📄 Loading environment variables from .env file...${NC}"
+    source .env
+fi
+
+# 환경 변수 확인 및 대화형 입력
 if [ -z "$BINANCE_API_KEY" ] || [ -z "$BINANCE_SECRET" ]; then
-    echo -e "${RED}❌ 환경 변수가 설정되지 않았습니다.${NC}"
-    echo "다음 환경 변수를 설정해주세요:"
-    echo "  export BINANCE_API_KEY='your_api_key'"
-    echo "  export BINANCE_SECRET='your_secret_key'"
-    exit 1
+    echo -e "${YELLOW}🔑 Binance API 키를 입력해주세요${NC}"
+    read -p "Binance API Key: " BINANCE_API_KEY
+    read -s -p "Binance Secret Key: " BINANCE_SECRET
+    echo ""
+    
+    if [ -z "$BINANCE_API_KEY" ] || [ -z "$BINANCE_SECRET" ]; then
+        echo -e "${RED}❌ API 키와 Secret 키를 모두 입력해야 합니다.${NC}"
+        exit 1
+    fi
 fi
 
 # AWS 계정 및 리전 설정
@@ -28,12 +38,10 @@ echo "  AWS Account: $AWS_ACCOUNT_ID"
 echo "  AWS Region: $AWS_REGION"
 echo ""
 
-# Terraform 변수 파일 생성
+# Terraform 변수 파일 생성 (API 키 제외)
 echo -e "${YELLOW}📝 Creating terraform.tfvars...${NC}"
 cat > terraform/terraform.tfvars << EOF
-aws_region       = "$AWS_REGION"
-binance_api_key  = "$BINANCE_API_KEY"
-binance_secret   = "$BINANCE_SECRET"
+aws_region = "$AWS_REGION"
 EOF
 
 echo -e "${GREEN}✅ terraform.tfvars created${NC}"
@@ -57,6 +65,28 @@ S3_BUCKET_NAME=$(terraform output -raw s3_bucket_name)
 
 echo -e "${GREEN}✅ Infrastructure deployed successfully${NC}"
 
+# Secrets Manager에 Binance API 키 설정
+echo -e "${YELLOW}🔐 Setting up Binance API credentials in Secrets Manager...${NC}"
+
+# Get the secret ARN from Terraform output
+SECRET_ARN=$(terraform output -raw secrets_manager_secret_arn)
+
+# Create the secret value JSON
+SECRET_JSON=$(cat <<EOF
+{
+  "api_key": "$BINANCE_API_KEY",
+  "secret_key": "$BINANCE_SECRET"
+}
+EOF
+)
+
+# Update the secret
+aws secretsmanager put-secret-value \
+    --secret-id "$SECRET_ARN" \
+    --secret-string "$SECRET_JSON"
+
+echo -e "${GREEN}✅ API credentials configured in Secrets Manager${NC}"
+
 # Docker 이미지 빌드 및 푸시
 echo -e "${YELLOW}🐳 Building and pushing Docker image...${NC}"
 cd ..
@@ -64,8 +94,8 @@ cd ..
 # ECR 로그인
 aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REPO_URL
 
-# Docker 이미지 빌드
-docker build -t bitcoin-auto-trader .
+# Docker 이미지 빌드 (AMD64 플랫폼으로 ECS Fargate 호환)
+docker build --platform linux/amd64 -t bitcoin-auto-trader .
 
 # 태그 설정 및 푸시
 docker tag bitcoin-auto-trader:latest $ECR_REPO_URL:latest

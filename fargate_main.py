@@ -11,7 +11,7 @@ import traceback
 from datetime import datetime
 
 from notification import notifier
-from state_store import state_store
+from state_store import StateStore
 from trade import TradingBot
 
 # 로깅 설정
@@ -35,6 +35,11 @@ def main():
         for var in required_env_vars:
             if not os.getenv(var):
                 raise ValueError(f"Required environment variable {var} is not set")
+
+        # State Store 초기화
+        use_s3 = os.getenv("USE_S3", "true").lower() == "true"
+        state_store = StateStore(use_s3=use_s3)
+        logger.info(f"📦 State store initialized (S3: {use_s3})")
 
         # 거래 봇 초기화
         bot = TradingBot()

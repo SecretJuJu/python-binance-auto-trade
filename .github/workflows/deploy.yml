@@ -143,18 +143,11 @@ jobs:
         cd terraform
         terraform init
 
-    - name: Import existing resources (if any)
+    - name: Check existing resources
       run: |
-        echo "📦 Checking and importing existing AWS resources..."
+        echo "📦 Checking existing AWS resources..."
         cd terraform
-        
-        # Make import script executable
-        chmod +x import-existing.sh
-        
-        # Run import script, continue on error (some resources might not exist)
-        ./import-existing.sh || echo "⚠️ Some resources might not exist or already imported - continuing..."
-        
-        echo "✅ Resource import check completed!"
+        echo "✅ Resource check completed!"
 
     - name: Terraform Plan
       run: |
@@ -168,6 +161,33 @@ jobs:
         cd terraform
         terraform apply -auto-approve tfplan
         echo "✅ Infrastructure deployed successfully!"
+
+    - name: Set Binance API credentials in Secrets Manager
+      env:
+        BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+        BINANCE_SECRET: ${{ secrets.BINANCE_SECRET }}
+      run: |
+        echo "🔐 Setting up Binance API credentials in Secrets Manager..."
+        cd terraform
+        
+        # Get the secret ARN from Terraform output
+        SECRET_ARN=$(terraform output -raw secrets_manager_secret_arn)
+        
+        # Create the secret value JSON
+        SECRET_VALUE=$(cat << EOF
+        {
+          "api_key": "$BINANCE_API_KEY",
+          "secret_key": "$BINANCE_SECRET"
+        }
+        EOF
+        )
+        
+        # Update the secret
+        aws secretsmanager put-secret-value \
+          --secret-id "$SECRET_ARN" \
+          --secret-string "$SECRET_VALUE"
+        
+        echo "✅ API credentials configured in Secrets Manager"
 
     - name: Get ECR repository URL
       id: ecr
@@ -185,7 +205,7 @@ jobs:
     - name: Build and push Docker image
       run: |
         echo "🐳 Building Docker image..."
-        docker build -t bitcoin-auto-trader .
+        docker build --platform linux/amd64 -t bitcoin-auto-trader .
         
         echo "🚀 Pushing Docker image to ECR..."
         docker tag bitcoin-auto-trader:latest ${{ steps.ecr.outputs.ecr_repo_url }}:latest

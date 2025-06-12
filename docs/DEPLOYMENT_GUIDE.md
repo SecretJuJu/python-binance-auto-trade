@@ -294,23 +294,26 @@ aws cloudwatch put-dashboard \
 
 ### 일반적인 문제들
 
-1. **배포 실패: 권한 부족**
+1. **Secrets Manager 권한 오류** (ECS Fargate)
    ```
-   User is not authorized to perform: lambda:CreateFunction
+   ResourceInitializationError: unable to retrieve secret from asm: AccessDeniedException
    ```
-   → IAM 권한 확인 및 재설정
+   → `terraform/set-secrets.sh` 실행하여 Binance API 키 설정
+   → 자세한 해결방법: `terraform/TROUBLESHOOTING.md` 참조
 
-2. **API 키 오류**
+2. **ECS 컨테이너 이미지 없음**
+   ```
+   Unable to pull image: repository does not exist
+   ```
+   → ECR에 Docker 이미지 푸시 필요
+   → `deploy-terraform.sh` 스크립트 사용 권장
+
+3. **API 키 오류**
    ```
    {'code': -2015, 'msg': 'Invalid API-key, IP, or permissions for action'}
    ```
    → 바이낸스 API 키 재발급 및 권한 확인
-
-3. **SNS 구독 실패**
-   ```
-   Could not find topic
-   ```
-   → 배포 완료 후 SNS 토픽 생성 확인
+   → Spot Trading 권한 활성화 필수
 
 4. **잔고 부족**
    ```
