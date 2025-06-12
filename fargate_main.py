@@ -51,11 +51,17 @@ def main():
 
         # 거래 전략 실행
         logger.info("🔄 Executing trading strategy...")
-        updated_state = bot.execute_strategy(current_state)
+        result = bot.execute_strategy(current_state)
 
-        # 상태 저장
-        state_store.save_state(updated_state)
-        logger.info(f"💾 State saved: {updated_state}")
+        # 상태가 변경된 경우에만 저장
+        if result.get("state_changed", False):
+            new_state = result["new_state"]
+            state_store.save_state(new_state)
+            logger.info(f"💾 State updated and saved: {new_state}")
+        else:
+            logger.info(f"📊 No state change, current result: {result}")
+
+        logger.info(f"🔄 Trading result: {result}")
 
         # 성공 알림 (선택적)
         if os.getenv("NOTIFY_ON_SUCCESS", "false").lower() == "true":
