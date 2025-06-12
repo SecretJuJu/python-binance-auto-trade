@@ -2,11 +2,34 @@ import json
 import logging
 import os
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, Dict
 
 import boto3
 
 logger = logging.getLogger(__name__)
+
+
+def convert_floats_to_decimal(obj):
+    """DynamoDB용으로 float를 Decimal로 변환"""
+    if isinstance(obj, float):
+        return Decimal(str(obj))
+    elif isinstance(obj, dict):
+        return {k: convert_floats_to_decimal(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_floats_to_decimal(v) for v in obj]
+    return obj
+
+
+def convert_decimals_to_float(obj):
+    """DynamoDB에서 로드한 Decimal을 float로 변환"""
+    if isinstance(obj, Decimal):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: convert_decimals_to_float(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_decimals_to_float(v) for v in obj]
+    return obj
 
 
 class StateStore:
@@ -80,7 +103,9 @@ class StateStore:
 
             if "Item" in response:
                 logger.info("Trading state loaded from DynamoDB")
-                return dict(response["Item"])
+                # Decimal을 float로 변환
+                state_data = convert_decimals_to_float(dict(response["Item"]))
+                return state_data
             else:
                 logger.info(
                     "No existing state found in DynamoDB, creating default state"
@@ -94,8 +119,11 @@ class StateStore:
         """DynamoDB에 상태 저장"""
         try:
             state["updated_at"] = datetime.now().isoformat()
-
-            self.table.put_item(Item=state)
+            
+            # float를 Decimal로 변환
+            dynamodb_state = convert_floats_to_decimal(state)
+            
+            self.table.put_item(Item=dynamodb_state)
             logger.info("Trading state saved to DynamoDB")
         except Exception as e:
             logger.error(f"Failed to save state to DynamoDB: {e}")
