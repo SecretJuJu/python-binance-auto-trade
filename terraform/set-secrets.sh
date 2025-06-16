@@ -25,7 +25,7 @@ SECRET_ARN=$(terraform output -raw secrets_manager_secret_arn)
 SECRET_JSON=$(cat <<EOF
 {
   "api_key": "$BINANCE_API_KEY",
-  "secret_key": "$BINANCE_SECRET_KEY"
+  "secret": "$BINANCE_SECRET_KEY"
 }
 EOF
 )
