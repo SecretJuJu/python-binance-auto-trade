@@ -177,7 +177,7 @@ jobs:
         SECRET_VALUE=$(cat << EOF
         {
           "api_key": "$BINANCE_API_KEY",
-          "secret_key": "$BINANCE_SECRET"
+          "secret": "$BINANCE_SECRET"
         }
         EOF
         )
